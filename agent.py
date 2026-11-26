@@ -17,8 +17,65 @@ from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
 MAX_TOOL_CALLS = 8  # Larkspur's own build capped the loop here; then a human takes over.
 
 TONE_ADDENDUM = ""                       # ✏️ Build 4, step 4.1, intelligence goal
-EXTRA_TOOLS: List[Dict[str, Any]] = []   # ✏️ Build 2, step 2.1: schemas for the tools you add
-LOCAL_TOOLS: Dict[str, Any] = {}         # ✏️ Build 2, step 2.1: the functions behind them
+EXTRA_TOOLS: List[Dict[str, Any]] = [   # ✏️ Build 2, step 2.1: schemas for the tools you add
+    {
+        "name": "what_automation_will_not_do",
+        "description": (
+            "Check Handbook section 7, the list of requests this chat is not allowed to "
+            "handle itself (for example refunds, cancelling a trip for money back, "
+            "rebooking on another airline, groups of 10 or more, unaccompanied minors, "
+            "pets in cabin, medical requests, baggage tracing). Call it as soon as the "
+            "customer asks for something you are not sure the chat may do, before "
+            "promising or attempting it. It does not hand anyone over: it returns the "
+            "Handbook's own wording on what people handle and what the chat may still "
+            "do, so you can explain it. If a handover is then needed, use "
+            "escalate_to_human."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "request": {
+                    "type": "string",
+                    "description": (
+                        "What the customer is asking for, in a few plain words, "
+                        "e.g. 'cancel the whole trip and get a refund'."
+                    ),
+                },
+            },
+            "required": ["request"],
+        },
+    },
+]
+
+
+def what_automation_will_not_do(request: str) -> Dict[str, Any]:
+    """Answer only from Handbook section 7 in fare_rules_excerpt.md; never invent."""
+    from pathlib import Path
+    path = Path(__file__).resolve().parent / "data" / "americas" / "fare_rules_excerpt.md"
+    text = path.read_text(encoding="utf-8")
+    marker = "### 7. What chat automation will not do"
+    if marker not in text:
+        return {"error": "Section 7 was not found in the Handbook file."}
+    section = text.split(marker, 1)[1].split("\n### ", 1)[0].strip()
+    people_part = section.split(" are handled by people.", 1)[0]
+    handled_by_people = [i.strip().removeprefix("and ").strip()
+                         for i in people_part.replace(", and ", ", ").split(",") if i.strip()]
+    words = [w for w in request.lower().replace("-", " ").split() if len(w) > 3]
+    matches = [item for item in handled_by_people
+               if any(w.rstrip("s") in item.lower() for w in words)]
+    return {
+        "request": request,
+        "source": "Larkspur Handbook v14.3, section 7",
+        "matched_items_handled_by_people": matches,
+        "match_note": ("No item in section 7 matched this request; the Handbook does not "
+                       "say it is restricted.") if not matches else "",
+        "section_7_text": section,
+    }
+
+
+LOCAL_TOOLS: Dict[str, Any] = {          # ✏️ Build 2, step 2.1: the functions behind them
+    "what_automation_will_not_do": what_automation_will_not_do,
+}
 
 
 def text_of(response) -> str:
