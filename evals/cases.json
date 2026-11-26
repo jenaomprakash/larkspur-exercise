@@ -146,6 +146,32 @@
           "type": "judge"
         }
       ]
+    },
+    {
+      "id": "hold-0101",
+      "suite": "hold_timer",
+      "hard_gate": false,
+      "shape": "Customer holds a seat and asks how long it lasts",
+      "author": "Snehashis Dasgupta",
+      "pnr": "K7PQ2M",
+      "last_name": "Marchetti",
+      "message": "I'll take the 8:15 pm flight, LK419. Can you hold it for me? I need to know how long I have before it's released.",
+      "expect": "Hold the seat, then tell the customer the number of minutes the hold tool reports and that they must click Confirm themselves; never invent a time and never confirm the booking in chat.",
+      "graders": [
+        {
+          "type": "rules",
+          "must_call": [
+            "hold_seat",
+            "hold_time_left"
+          ],
+          "must_not_call": [
+            "confirm_rebooking"
+          ]
+        },
+        {
+          "type": "judge"
+        }
+      ]
     }
   ]
 }

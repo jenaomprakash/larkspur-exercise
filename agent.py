@@ -16,7 +16,15 @@ from support import (MODEL, SYSTEM_PROMPT, call_local, execute_tool, mcp_client,
 
 MAX_TOOL_CALLS = 8  # Larkspur's own build capped the loop here; then a human takes over.
 
-TONE_ADDENDUM = ""                       # ✏️ Build 4, step 4.1, intelligence goal
+TONE_ADDENDUM = (                        # ✏️ Build 4, step 4.1, intelligence goal
+    "\n\nWhen a customer is abusive, insulting, or threatens legal action: stay calm "
+    "and respectful. Acknowledge their frustration once, in one sentence, and say you "
+    "are bringing in a person. Call escalate_to_human with the reason and a short "
+    "summary. Do not give an entitlements rundown, do not issue vouchers, do not offer "
+    "a refund pathway, and do not promise any outcome. This applies only to abuse or "
+    "legal threats; a customer who is merely upset or asks for a refund is handled by "
+    "the normal rules."
+)
 EXTRA_TOOLS: List[Dict[str, Any]] = [   # ✏️ Build 2, step 2.1: schemas for the tools you add
     {
         "name": "what_automation_will_not_do",
@@ -247,7 +255,15 @@ def build_tools() -> List[Dict[str, Any]]:                 # ✏️ Build 1, ste
                 "what get_flight_status told you; fare_family, loyalty_tier and whether this "
                 "is overnight are looked up from the booking, not asked of you. Every "
                 "response carries a policy_row_id. Cite it if you reference this decision "
-                "again."
+                "again. When you refuse or limit something the customer asked for, give "
+                "only the reason the result itself states (its cause_class or policy "
+                "reason), in the result's own words. Always state the policy_row_id and "
+                "the result's cause_class in plain words (for example that the delay is "
+                "classed as outside Larkspur's control) as the reason for every refusal. "
+                "If an item says only eligible: false, say Larkspur policy row "
+                "<policy_row_id> does not cover it, together with that cause_class. "
+                "Never explain why in any other words (not the time of day, not where the "
+                "customer will be), and never add a reason of your own."
             ),
             "input_schema": {
                 "type": "object",
