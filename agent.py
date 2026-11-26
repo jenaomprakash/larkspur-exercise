@@ -45,7 +45,48 @@ EXTRA_TOOLS: List[Dict[str, Any]] = [   # ✏️ Build 2, step 2.1: schemas for 
             "required": ["request"],
         },
     },
+    {
+        "name": "hold_time_left",
+        "description": (
+            "Tell the customer how long they have before a seat we are holding for "
+            "them is released. Call it when the customer asks how much time is left "
+            "on a hold. Needs the hold_id returned by hold_seat earlier in this "
+            "conversation; if no seat has been held yet, call hold_seat first. "
+            "Read-only: it changes nothing and does not extend the hold. Quote only "
+            "the minutes it returns; if it says expired or unknown_hold, say so and "
+            "offer to hold the seat again."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "hold_id": {
+                    "type": "string",
+                    "description": "The hold_id returned by hold_seat, e.g. HOLD-1A2B3C",
+                },
+            },
+            "required": ["hold_id"],
+        },
+    },
 ]
+
+
+def hold_time_left(hold_id: str) -> Dict[str, Any]:
+    """How long until a held seat is released, read from the mock backend's
+    holds against the same fixture clock every other tool uses."""
+    from support import mock_backend
+    hold = mock_backend._holds.get(hold_id)
+    if hold is None:
+        return {"status": "error", "reason": "unknown_hold", "hold_id": hold_id}
+    seconds = (hold["expires_at"] - mock_backend.FIXTURE_CLOCK).total_seconds()
+    if seconds <= 0:
+        return {"status": "expired", "hold_id": hold_id, "minutes_left": 0}
+    return {
+        "status": "active",
+        "hold_id": hold_id,
+        "option_id": hold["option_id"],
+        "minutes_left": int(seconds // 60),
+        "seconds_left": int(seconds),
+    }
 
 
 def what_automation_will_not_do(request: str) -> Dict[str, Any]:
@@ -75,6 +116,7 @@ def what_automation_will_not_do(request: str) -> Dict[str, Any]:
 
 LOCAL_TOOLS: Dict[str, Any] = {          # ✏️ Build 2, step 2.1: the functions behind them
     "what_automation_will_not_do": what_automation_will_not_do,
+    "hold_time_left": hold_time_left,
 }
 
 
